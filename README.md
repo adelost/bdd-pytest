@@ -170,6 +170,8 @@ expect(items).to_have_length(3)
 expect(name).to_contain("Alice")
 expect(value).to_be_truthy()
 expect(score).to_be_greater_than(0.5)
+expect(0.1 + 0.2).to_be_close_to(0.3)           # float comparison, default 7 decimal places
+expect(depth).to_be_close_to(1.5, places=2)      # custom precision
 expect(text).to_match(r"Error: \d+")
 expect(obj).to_be_instance_of(User)
 expect(lambda: bad()).to_raise(ValueError, match="invalid")
