@@ -1,0 +1,30 @@
+[project]
+name = "bdd-pytest"
+version = "2.0.0"
+description = "Enforced Given/When/Then for pytest - inline scenarios, zero config"
+requires-python = ">=3.10"
+dependencies = ["pytest-timeout>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.entry-points.pytest11]
+bdd_pytest = "bdd_pytest.plugin"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bdd_pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: fast unit tests (<100ms)",
+    "component: component tests with mocked deps (<5s)",
+    "integration: integration tests (<30s)",
+    "e2e: end-to-end tests (<120s)",
+    "timeout: pytest-timeout marker",
+]
+filterwarnings = ["ignore::UserWarning:bdd_pytest.plugin"]
