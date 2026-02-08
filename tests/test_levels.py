@@ -1,10 +1,7 @@
 """Tests for level decorators (@unit, @component, etc.)."""
 
-import pytest
-
 from bdd_pytest import component, e2e, expect, integration, scenario, unit
 from bdd_pytest.levels import LEVEL_TIMEOUTS, get_current_level
-
 
 # --- Markers applied correctly ---
 
@@ -36,8 +33,7 @@ def test_e2e_sets_marker():
 def test_unit_has_timeout_marker():
     scenario(
         "unit timeout is 0.1s",
-        then=("timeout matches", lambda _, __:
-            expect(LEVEL_TIMEOUTS["unit"]).to_be(0.1)),
+        then=("timeout matches", lambda _, __: expect(LEVEL_TIMEOUTS["unit"]).to_be(0.1)),
     )
 
 
@@ -45,12 +41,15 @@ def test_unit_has_timeout_marker():
 def test_all_timeouts_defined():
     scenario(
         "all levels have timeouts",
-        then=("four levels exist", lambda _, __: (
-            expect(LEVEL_TIMEOUTS).to_contain("unit"),
-            expect(LEVEL_TIMEOUTS).to_contain("component"),
-            expect(LEVEL_TIMEOUTS).to_contain("integration"),
-            expect(LEVEL_TIMEOUTS).to_contain("e2e"),
-        )),
+        then=(
+            "four levels exist",
+            lambda _, __: (
+                expect(LEVEL_TIMEOUTS).to_contain("unit"),
+                expect(LEVEL_TIMEOUTS).to_contain("component"),
+                expect(LEVEL_TIMEOUTS).to_contain("integration"),
+                expect(LEVEL_TIMEOUTS).to_contain("e2e"),
+            ),
+        ),
     )
 
 
@@ -62,8 +61,7 @@ def test_thread_local_set_during_execution():
     """get_current_level() returns 'unit' inside @unit-decorated test."""
     scenario(
         "thread-local is set",
-        then=("level is unit", lambda _, __:
-            expect(get_current_level()).to_be("unit")),
+        then=("level is unit", lambda _, __: expect(get_current_level()).to_be("unit")),
     )
 
 
@@ -71,8 +69,7 @@ def test_thread_local_set_during_execution():
 def test_thread_local_set_for_component():
     scenario(
         "thread-local is set for component",
-        then=("level is component", lambda _, __:
-            expect(get_current_level()).to_be("component")),
+        then=("level is component", lambda _, __: expect(get_current_level()).to_be("component")),
     )
 
 

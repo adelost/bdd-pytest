@@ -194,9 +194,7 @@ def test_to_raise_pass():
 
 @unit
 def test_to_raise_with_match():
-    expect(lambda: _raise(ValueError("bad input"))).to_raise(
-        ValueError, match="bad"
-    )
+    expect(lambda: _raise(ValueError("bad input"))).to_raise(ValueError, match="bad")
 
 
 @unit
@@ -214,9 +212,7 @@ def test_to_raise_wrong_type():
 @unit
 def test_to_raise_match_fails():
     with pytest.raises(AssertionError, match="to match"):
-        expect(lambda: _raise(ValueError("actual msg"))).to_raise(
-            ValueError, match="expected msg"
-        )
+        expect(lambda: _raise(ValueError("actual msg"))).to_raise(ValueError, match="expected msg")
 
 
 @unit

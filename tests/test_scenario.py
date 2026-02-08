@@ -100,10 +100,13 @@ def test_context_flows_through():
         "context preserved",
         given=("a dict", lambda: {"key": "value"}),
         when=("reading key", lambda ctx: ctx["key"]),
-        then=("got value", lambda result, ctx: (
-            expect(result).to_be("value"),
-            expect(ctx).to_contain("key"),
-        )),
+        then=(
+            "got value",
+            lambda result, ctx: (
+                expect(result).to_be("value"),
+                expect(ctx).to_contain("key"),
+            ),
+        ),
     )
 
 
@@ -115,10 +118,13 @@ def test_given_then_result_is_none():
     scenario(
         "no when means result is None",
         given=("a value", lambda: 42),
-        then=("result is None, ctx is 42", lambda result, ctx: (
-            expect(result).to_be_none(),
-            expect(ctx).to_be(42),
-        )),
+        then=(
+            "result is None, ctx is 42",
+            lambda result, ctx: (
+                expect(result).to_be_none(),
+                expect(ctx).to_be(42),
+            ),
+        ),
     )
 
 
@@ -171,10 +177,11 @@ def test_catches_in_scenario():
     scenario(
         "catches integrates with scenario",
         when=("raising ValueError", lambda _: catches(lambda: _raise(ValueError("bad")))),
-        then=("error is ValueError", lambda err, _: (
-            expect(err).to_be_instance_of(ValueError),
-            expect(str(err)).to_contain("bad"),
-        )),
+        then=(
+            "error is ValueError",
+            lambda err, _: (
+                expect(err).to_be_instance_of(ValueError),
+                expect(str(err)).to_contain("bad"),
+            ),
+        ),
     )
-
-

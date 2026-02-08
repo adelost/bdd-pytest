@@ -67,7 +67,7 @@ class Expectation:
 
     def to_be_close_to(self, expected: float, *, places: int = 7) -> Expectation:
         diff = abs(self._value - expected)
-        threshold = 10 ** -places
+        threshold = 10**-places
         return self._check(
             diff < threshold,
             f"{self._value!r} to be close to {expected!r} (within {places} decimal places)",
@@ -112,13 +112,10 @@ class Expectation:
             raise AssertionError(f"Expected to raise {exc_type.__name__}, but nothing was raised")
         if not isinstance(raised, exc_type):
             raise AssertionError(
-                f"Expected to raise {exc_type.__name__}, "
-                f"but {type(raised).__name__} was raised"
+                f"Expected to raise {exc_type.__name__}, but {type(raised).__name__} was raised"
             )
         if match is not None and not re.search(match, str(raised)):
-            raise AssertionError(
-                f"Expected error message to match {match!r}, got {str(raised)!r}"
-            )
+            raise AssertionError(f"Expected error message to match {match!r}, got {str(raised)!r}")
         return self
 
 
