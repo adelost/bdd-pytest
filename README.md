@@ -1,6 +1,6 @@
 # bdd-pytest
 
-Opinionated BDD for pytest. Your tests are your documentation.
+Opinionated BDD contracts for pytest. Your tests are executable documentation.
 
 ```python
 from bdd_pytest import unit, expect, scenario
@@ -20,11 +20,13 @@ Read just the descriptions. You understand the system without opening production
 
 Most test frameworks let you write `def test_something():` with no structure inside. AI agents (and tired humans) skip descriptions, skip assertions, write tests that pass but prove nothing.
 
-bdd-pytest makes it impossible:
+bdd-pytest makes the structure enforceable:
 
-- **Descriptions are required.** Every phase is a `("description", fn)` tuple.
-- **Levels are required.** No generic test. You must pick `@unit`, `@component`, `@integration`, or `@e2e`. Each has enforced timeouts.
-- **Assertions are required.** `then` is mandatory. No test without a check.
+- **Descriptions are validated.** Scenario and phase descriptions must be non-empty.
+- **Levels are enforceable.** Require exactly one of `@unit`, `@component`, `@integration`, or `@e2e`; each has a timeout.
+- **Documentation is enforceable.** Require a test docstring or a validated scenario call.
+- **A verification phase is required.** `then` is mandatory. The framework validates its
+  structure; it cannot prove that arbitrary Python code contains a meaningful assertion.
 
 ## Install
 
@@ -49,7 +51,18 @@ from bdd_pytest import unit, component, integration, e2e
 | `@integration` | 30s | Multiple services, real deps |
 | `@e2e` | 120s | Full system, browser, network |
 
-Tests without a level decorator get a warning. Tests exceeding their timeout fail.
+By default, tests without exactly one level produce a migration warning. Turn the contracts into
+hard collection/test failures in `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+bdd_level_policy = "error"
+bdd_documentation_policy = "error"
+```
+
+Both policies accept `off`, `warn`, or `error`. CLI options with the same names override the file:
+`--bdd-level-policy=error` and `--bdd-documentation-policy=error`. See
+[`CONTRACT.md`](CONTRACT.md) for the exact invariants.
 
 ## Phases
 
@@ -89,9 +102,9 @@ def test_fifo_order():
 Errors show which phase failed, with level prefix:
 
 ```
-AssertionError: [unit/given] Database connection: connection refused
-AssertionError: [unit/when] Request timeout: read timed out
-AssertionError: [unit/then] status is 200: Expected 500 to be 200
+AssertionError: [unit/given] loads profile > database is seeded: connection refused
+AssertionError: [unit/when] loads profile > requesting profile: read timed out
+AssertionError: [unit/then] loads profile > status is 200: Expected 500 to be 200
 ```
 
 ## Cleanup
@@ -113,6 +126,27 @@ Cleanup runs even if the test fails.
 
 ## Table-driven
 
+Prefer `@cases`: each row is a separately collected pytest item, so reports identify the exact
+case and a failure does not prevent later rows from running.
+
+```python
+from bdd_pytest import cases, scenario
+
+@unit
+@cases([
+    {"name": "positives", "a": 2, "b": 3, "expected": 5},
+    {"name": "negatives", "a": -1, "b": 1, "expected": 0},
+])
+def test_adds_numbers(row):
+    scenario(f"adds {row['name']}",
+        when=("adding operands", lambda _: row["a"] + row["b"]),
+        then=("sum is correct", lambda result, _: expect(result).to_be(row["expected"])),
+    )
+```
+
+`scenario_outline()` remains available for compatibility, but executes all rows inside one pytest
+item:
+
 ```python
 from bdd_pytest import scenario_outline
 
@@ -128,7 +162,7 @@ def test_adds_numbers():
     )
 ```
 
-Failures include row name: `[unit/then] adds numbers [negatives]: Expected -2 to be 0`.
+Failures include row name: `[unit/then] adds numbers [negatives] > expectations hold: ...`.
 
 ## Grouping
 
@@ -227,7 +261,8 @@ pytest -m "unit or component"
 |--------|------|
 | `@unit` / `@component` / `@integration` / `@e2e` | Test decorator with enforced timeout + marker |
 | `scenario(name, *, given, when, then, cleanup)` | Inline Given/When/Then |
-| `scenario_outline(name, table, *, given, when, then, cleanup)` | Table-driven scenarios |
+| `@cases(table)` | Preferred table-driven API; one pytest item per row |
+| `scenario_outline(name, table, *, given, when, then, cleanup)` | Compatibility API; rows run inline |
 | `expect(value)` | Lambda-friendly assertions |
 | `catches(fn)` | Capture exception for assertion |
 

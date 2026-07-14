@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from ._contract import record_scenario
 from ._phases import run_phase
 from .expect import Expectation, expect
 from .levels import component, e2e, get_current_level, integration, unit
-from .outline import scenario_outline
+from .outline import cases, scenario_outline
 
 __all__ = [
     "scenario",
@@ -19,6 +20,7 @@ __all__ = [
     "expect",
     "Expectation",
     "scenario_outline",
+    "cases",
     "unit",
     "component",
     "integration",
@@ -34,26 +36,34 @@ def scenario(
     then: tuple[str, Callable[..., None]],
     cleanup: Callable[..., None] | None = None,
 ) -> None:
-    """Execute a Given/When/Then scenario inline."""
+    """Execute a validated Given/When/Then scenario inline."""
+    scenario_name = _require_text("scenario name", name)
+    given_phase = _validate_given(given)
+    when_phase = _validate_phase("when", when) if when is not None else None
+    then_phase = _validate_phase("then", then)
+    if cleanup is not None and not callable(cleanup):
+        raise TypeError(f"scenario {scenario_name!r}: cleanup must be callable")
+
+    record_scenario(scenario_name)
     level = get_current_level()
     tag = f"{level}/" if level else ""
     ctx: Any = None
     result: Any = None
 
     try:
-        if given is not None and not isinstance(given, str):
-            ctx = run_phase("given", tag, given[0], given[1])
+        if given_phase is not None and not isinstance(given_phase, str):
+            ctx = run_phase("given", tag, scenario_name, given_phase[0], given_phase[1])
 
-        if when is not None:
-            result = run_phase("when", tag, when[0], when[1], ctx)
+        if when_phase is not None:
+            result = run_phase("when", tag, scenario_name, when_phase[0], when_phase[1], ctx)
 
-        result = run_phase("then", tag, then[0], then[1], result, ctx)
+        run_phase("then", tag, scenario_name, then_phase[0], then_phase[1], result, ctx)
     finally:
         if cleanup is not None:
             cleanup(ctx)
 
 
-def catches(fn: Callable[[], Any]) -> BaseException | None:
+def catches(fn: Callable[[], Any]) -> Exception | None:
     """Call fn and return the exception if raised, else None.
 
     Usage:
@@ -63,5 +73,34 @@ def catches(fn: Callable[[], Any]) -> BaseException | None:
     try:
         fn()
         return None
-    except BaseException as e:
+    except Exception as e:
         return e
+
+
+def _require_text(field: str, value: object) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} must be a non-empty string")
+    return value.strip()
+
+
+def _validate_phase(
+    phase: str, value: object
+) -> tuple[str, Callable[..., Any]]:
+    if not isinstance(value, tuple) or len(value) != 2:
+        raise TypeError(f"{phase} must be a (description, callable) tuple")
+    description, fn = value
+    validated_description = _require_text(f"{phase} description", description)
+    if not callable(fn):
+        raise TypeError(f"{phase} callback must be callable")
+    return validated_description, fn
+
+
+def _validate_given(
+    value: tuple[str, Callable[[], Any]] | str | None,
+) -> tuple[str, Callable[[], Any]] | str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return _require_text("given description", value)
+    description, fn = _validate_phase("given", value)
+    return description, fn

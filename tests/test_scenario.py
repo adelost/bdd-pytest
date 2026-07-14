@@ -83,6 +83,16 @@ def test_error_in_when_tagged():
 
 
 @unit
+def test_phase_wrapping_preserves_type_error():
+    with pytest.raises(TypeError, match=r"\[unit/when\].*bad type"):
+        scenario(
+            "type error remains a type error",
+            when=("calling invalid code", lambda _: _raise(TypeError("bad type"))),
+            then=("never reached", lambda r, c: None),
+        )
+
+
+@unit
 def test_error_in_then_tagged():
     with pytest.raises(AssertionError, match=r"\[unit/then\]"):
         scenario(
@@ -185,3 +195,23 @@ def test_catches_in_scenario():
             ),
         ),
     )
+
+
+@unit
+def test_scenario_rejects_blank_contract_descriptions():
+    with pytest.raises(ValueError, match="scenario name"):
+        scenario("  ", then=("holds", lambda _, __: None))
+    with pytest.raises(ValueError, match="then description"):
+        scenario("named", then=("", lambda _, __: None))
+
+
+@unit
+def test_scenario_rejects_non_callable_phase():
+    with pytest.raises(TypeError, match="then callback"):
+        scenario("named", then=("holds", None))  # type: ignore[arg-type]
+
+
+@unit
+def test_catches_does_not_swallow_process_control_exceptions():
+    with pytest.raises(KeyboardInterrupt):
+        catches(lambda: _raise(KeyboardInterrupt()))

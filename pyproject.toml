@@ -1,12 +1,33 @@
 [project]
 name = "bdd-pytest"
-version = "2.0.0"
-description = "Enforced Given/When/Then for pytest - inline scenarios, zero config"
+version = "2.1.0"
+description = "Enforceable test-level and Given/When/Then contracts for pytest"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Mattias Wetterlind" }]
 requires-python = ">=3.10"
-dependencies = ["pytest-timeout>=2.0"]
+dependencies = ["pytest>=8,<10", "pytest-timeout>=2.0"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Pytest",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/adelost/bdd-pytest"
+Repository = "https://github.com/adelost/bdd-pytest"
+Issues = "https://github.com/adelost/bdd-pytest/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["build>=1.2", "ruff>=0.11"]
 
 [project.entry-points.pytest11]
 bdd_pytest = "bdd_pytest.plugin"
@@ -20,6 +41,8 @@ packages = ["src/bdd_pytest"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+bdd_level_policy = "error"
+bdd_documentation_policy = "off"
 markers = [
     "unit: fast unit tests (<100ms)",
     "component: component tests with mocked deps (<5s)",
@@ -27,7 +50,6 @@ markers = [
     "e2e: end-to-end tests (<120s)",
     "timeout: pytest-timeout marker",
 ]
-filterwarnings = ["ignore::UserWarning:bdd_pytest.plugin"]
 
 [tool.ruff]
 target-version = "py310"

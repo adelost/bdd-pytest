@@ -1,47 +1,87 @@
-"""Tests for the pytest plugin (missing level marker warning)."""
+"""Integration tests for the enforceable pytest contracts."""
 
-import warnings
+from __future__ import annotations
+
+import pytest
 
 from bdd_pytest import unit
-from bdd_pytest.plugin import LEVELS, pytest_collection_modifyitems
 
-
-class FakeItem:
-    """Minimal pytest item stub for testing the plugin hook."""
-
-    def __init__(self, nodeid: str, markers: set[str] | None = None):
-        self.nodeid = nodeid
-        self._markers = markers or set()
-
-    def get_closest_marker(self, name: str):
-        return name if name in self._markers else None
+pytest_plugins = ["pytester"]
 
 
 @unit
-def test_warning_for_missing_level():
-    items = [FakeItem("tests/test_foo.py::test_bar")]
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        pytest_collection_modifyitems(items)
-    assert len(w) == 1
-    assert "no level marker" in str(w[0].message)
-    assert "test_bar" in str(w[0].message)
+def test_level_contract_rejects_missing_marker(pytester: pytest.Pytester):
+    pytester.makepyfile("def test_unclassified():\n    pass")
+
+    result = pytester.runpytest("--bdd-level-policy=error")
+
+    result.stderr.fnmatch_lines(
+        ["*bdd-pytest level contract failed:*", "*test_unclassified: no level marker*"]
+    )
+    assert result.ret == pytest.ExitCode.USAGE_ERROR
 
 
 @unit
-def test_no_warning_when_level_present():
-    items = [FakeItem("tests/test_foo.py::test_bar", markers={"unit"})]
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        pytest_collection_modifyitems(items)
-    assert len(w) == 0
+def test_level_contract_rejects_multiple_markers(pytester: pytest.Pytester):
+    pytester.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.unit
+        @pytest.mark.component
+        def test_ambiguous():
+            pass
+        """
+    )
+
+    result = pytester.runpytest("--bdd-level-policy=error")
+
+    result.stderr.fnmatch_lines(["*multiple level markers: unit, component*"])
+    assert result.ret == pytest.ExitCode.USAGE_ERROR
 
 
 @unit
-def test_no_warning_for_any_level():
-    for level in LEVELS:
-        items = [FakeItem(f"test::{level}_test", markers={level})]
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            pytest_collection_modifyitems(items)
-        assert len(w) == 0, f"Unexpected warning for level {level}"
+def test_documentation_contract_rejects_undocumented_test(pytester: pytest.Pytester):
+    pytester.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.unit
+        def test_undocumented():
+            assert True
+        """
+    )
+
+    result = pytester.runpytest(
+        "--bdd-level-policy=error", "--bdd-documentation-policy=error"
+    )
+
+    result.assert_outcomes(failed=1)
+    result.stdout.fnmatch_lines(["*documentation contract failed*"])
+
+
+@unit
+def test_documentation_contract_accepts_docstring_and_scenario(pytester: pytest.Pytester):
+    pytester.makepyfile(
+        """
+        from bdd_pytest import expect, scenario, unit
+
+        @unit
+        def test_with_docstring():
+            \"\"\"The behavior is documented without the scenario DSL.\"\"\"
+            assert True
+
+        @unit
+        def test_with_scenario():
+            scenario(
+                \"the behavior is documented as a scenario\",
+                then=(\"the invariant holds\", lambda _, __: expect(True).to_be_truthy()),
+            )
+        """
+    )
+
+    result = pytester.runpytest(
+        "--bdd-level-policy=error", "--bdd-documentation-policy=error"
+    )
+
+    result.assert_outcomes(passed=2)

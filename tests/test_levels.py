@@ -1,5 +1,7 @@
 """Tests for level decorators (@unit, @component, etc.)."""
 
+import asyncio
+
 from bdd_pytest import component, e2e, expect, integration, scenario, unit
 from bdd_pytest.levels import LEVEL_TIMEOUTS, get_current_level
 
@@ -53,7 +55,7 @@ def test_all_timeouts_defined():
     )
 
 
-# --- Thread-local level ---
+# --- Context-local level ---
 
 
 @unit
@@ -73,9 +75,32 @@ def test_thread_local_set_for_component():
     )
 
 
-def test_thread_local_none_outside_decorator():
-    """get_current_level() returns None when no decorator is active."""
-    expect(get_current_level()).to_be_none()
+@unit
+def test_context_local_restored_after_nested_decorator():
+    """A nested level restores the surrounding test's level."""
+    seen = []
+
+    @component
+    def nested():
+        seen.append(get_current_level())
+
+    expect(get_current_level()).to_be("unit")
+    nested()
+    expect(seen).to_be(["component"])
+    expect(get_current_level()).to_be("unit")
+
+
+@unit
+def test_context_local_level_survives_async_execution():
+    """Async tests retain their level across await points and restore it afterwards."""
+
+    @component
+    async def nested():
+        await asyncio.sleep(0)
+        return get_current_level()
+
+    expect(asyncio.run(nested())).to_be("component")
+    expect(get_current_level()).to_be("unit")
 
 
 # --- Decorator preserves function metadata ---

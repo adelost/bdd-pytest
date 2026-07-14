@@ -5,14 +5,22 @@ from __future__ import annotations
 from typing import Any, Callable
 
 
-def run_phase(phase: str, tag: str, desc: str, fn: Callable[..., Any], *args: Any) -> Any:
-    """Execute a scenario phase, wrapping errors with [tag/phase] desc prefix."""
+def run_phase(
+    phase: str,
+    tag: str,
+    scenario_name: str,
+    desc: str,
+    fn: Callable[..., Any],
+    *args: Any,
+) -> Any:
+    """Execute a scenario phase with enough context to locate a failure."""
     try:
         return fn(*args)
     except Exception as e:
-        msg = f"[{tag}{phase}] {desc}: {e}"
+        msg = f"[{tag}{phase}] {scenario_name} > {desc}: {e}"
         try:
-            raise type(e)(msg) from e
-        except TypeError:
+            wrapped = type(e)(msg)
+        except Exception:
             # Some exceptions (e.g. UnicodeDecodeError) require multiple args
             raise RuntimeError(msg) from e
+        raise wrapped from e

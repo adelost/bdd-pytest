@@ -2,7 +2,22 @@
 
 import pytest
 
-from bdd_pytest import expect, scenario_outline, unit
+from bdd_pytest import cases, expect, scenario, scenario_outline, unit
+
+
+@unit
+@cases(
+    [
+        {"name": "positives", "a": 2, "b": 3, "expected": 5},
+        {"name": "negatives", "a": -1, "b": 1, "expected": 0},
+    ]
+)
+def test_cases_are_separate_pytest_items(row):
+    scenario(
+        f"adds {row['name']}",
+        when=("adding the operands", lambda _: row["a"] + row["b"]),
+        then=("the sum is correct", lambda result, _: expect(result).to_be(row["expected"])),
+    )
 
 
 @unit
@@ -106,3 +121,15 @@ def test_outline_cleanup_called():
         cleanup=lambda ctx: cleaned.append(ctx),
     )
     expect(cleaned).to_be(["a", "b"])
+
+
+@unit
+def test_cases_rejects_empty_table():
+    with pytest.raises(ValueError, match="at least one row"):
+        cases([])
+
+
+@unit
+def test_cases_rejects_blank_row_name():
+    with pytest.raises(ValueError, match="row 0 name"):
+        cases([{"name": ""}])
