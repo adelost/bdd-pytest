@@ -64,6 +64,11 @@ Both policies accept `off`, `warn`, or `error`. CLI options with the same names 
 `--bdd-level-policy=error` and `--bdd-documentation-policy=error`. See
 [`CONTRACT.md`](CONTRACT.md) for the exact invariants.
 
+The policies intentionally use the same vocabulary as `bdd-vitest`. The pytest plugin defaults to
+`warn`/`off` because it auto-loads when installed; enable `error`/`error` in repositories that have
+finished migrating. Level validation runs after marker deselection, so tests excluded with `-m` do
+not block the selected suite.
+
 ## Phases
 
 `then` is always required. Everything else is optional:
@@ -124,10 +129,16 @@ def test_finds_user():
 
 Cleanup runs even if the test fails.
 
+Cleanup errors use the same diagnostic shape as other phases:
+`[integration/cleanup] finds user by email > cleanup completes: ...`. If both the scenario and
+cleanup fail, `ScenarioCleanupError` retains them as `.primary`, `.cleanup`, and `.exceptions`;
+the teardown error never hides the behavior failure.
+
 ## Table-driven
 
 Prefer `@cases`: each row is a separately collected pytest item, so reports identify the exact
-case and a failure does not prevent later rows from running.
+case and a failure does not prevent later rows from running. Every row must have a unique,
+non-empty `name`; this is a documentation key, not just display text.
 
 ```python
 from bdd_pytest import cases, scenario
@@ -145,7 +156,7 @@ def test_adds_numbers(row):
 ```
 
 `scenario_outline()` remains available for compatibility, but executes all rows inside one pytest
-item:
+item. Like `bdd-vitest`, its strict form describes every executable phase:
 
 ```python
 from bdd_pytest import scenario_outline
@@ -156,13 +167,31 @@ def test_adds_numbers():
         {"name": "positives",  "a": 2,  "b": 3, "expected": 5},
         {"name": "negatives",  "a": -1, "b": 1, "expected": 0},
     ],
-        given=lambda row: (row["a"], row["b"]),
-        when= lambda ctx, row: ctx[0] + ctx[1],
-        then= lambda result, ctx, row: expect(result).to_be(row["expected"]),
+        given=("two operands", lambda row: (row["a"], row["b"])),
+        when= ("adding operands", lambda ctx, row: ctx[0] + ctx[1]),
+        then= ("sum is correct", lambda result, ctx, row: expect(result).to_be(row["expected"])),
     )
 ```
 
-Failures include row name: `[unit/then] adds numbers [negatives] > expectations hold: ...`.
+Callable-only phases remain supported for compatibility, but are marked undocumented and do not
+satisfy `bdd_documentation_policy = "error"` unless the test function has a docstring. Do not mix
+described tuples and callable-only phases in one outline.
+
+Failures include row name: `[unit/then] adds numbers [negatives] > sum is correct: ...`.
+
+## Machine-readable reports
+
+Each executed test adds stable properties to pytest's report metadata and JUnit XML:
+
+- `bdd.level`: the collected level marker.
+- `bdd.documentation`: `scenario`, `docstring`, or `missing`.
+- `bdd.scenarios`: compact JSON with scenario names and phase descriptions, when scenarios ran.
+
+Each scenario record also has a `documented` boolean so consumers can distinguish strict contracts
+from compatibility outlines.
+
+This makes the same contract available to CI, documentation generators, and AI tooling without
+parsing test source or console output.
 
 ## Grouping
 

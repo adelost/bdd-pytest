@@ -2,7 +2,7 @@
 
 import pytest
 
-from bdd_pytest import catches, expect, scenario, unit
+from bdd_pytest import ScenarioCleanupError, catches, expect, scenario, unit
 
 
 def _raise(exc):
@@ -164,6 +164,47 @@ def test_cleanup_called_on_failure():
             cleanup=lambda ctx: cleaned.append(ctx),
         )
     expect(cleaned).to_be(["resource"])
+
+
+@unit
+def test_cleanup_error_is_tagged():
+    with pytest.raises(ValueError, match=r"\[unit/cleanup\].*cleanup completes"):
+        scenario(
+            "cleanup fails",
+            then=("scenario succeeds", lambda _, __: None),
+            cleanup=lambda _: _raise(ValueError("cleanup broke")),
+        )
+
+
+@unit
+def test_primary_and_cleanup_failures_are_both_retained():
+    with pytest.raises(ScenarioCleanupError) as caught:
+        scenario(
+            "both fail",
+            then=("scenario fails", lambda _, __: _raise(AssertionError("primary broke"))),
+            cleanup=lambda _: _raise(ValueError("cleanup broke")),
+        )
+
+    error = caught.value
+    expect(error.primary).to_be_instance_of(AssertionError)
+    expect(error.cleanup).to_be_instance_of(ValueError)
+    expect(error.exceptions).to_have_length(2)
+    expect(str(error.primary)).to_contain("[unit/then] both fail > scenario fails")
+    expect(str(error.cleanup)).to_contain("[unit/cleanup] both fail > cleanup completes")
+    expect(str(error)).to_contain("primary broke")
+    expect(str(error)).to_contain("cleanup broke")
+
+
+@unit
+def test_cleanup_runs_without_masking_process_control_exception():
+    cleaned = []
+    with pytest.raises(KeyboardInterrupt):
+        scenario(
+            "interrupted",
+            then=("interrupts", lambda _, __: _raise(KeyboardInterrupt())),
+            cleanup=lambda _: cleaned.append(True),
+        )
+    expect(cleaned).to_be([True])
 
 
 # --- catches() ---

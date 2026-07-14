@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 from typing import Literal, cast
 
 import pytest
@@ -57,6 +58,7 @@ def pytest_configure(config: pytest.Config) -> None:
         _policy(config, option, ini_name)
 
 
+@pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     policy = _policy(config, "bdd_level_policy", "bdd_level_policy")
     if policy == "off":
@@ -64,7 +66,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
     violations: list[str] = []
     for item in items:
-        marked = [level for level in LEVELS if item.get_closest_marker(level)]
+        marked = _level_markers(item)
         if len(marked) == 1:
             continue
         detail = (
@@ -87,10 +89,36 @@ def pytest_runtest_call(item: pytest.Item):
     outcome = yield
     scenarios = end_test(token)
 
+    levels = _level_markers(item)
+    documented_scenarios = [record for record in scenarios if record.documented]
+    documentation = (
+        "scenario"
+        if documented_scenarios
+        else "docstring"
+        if _has_docstring(item)
+        else "missing"
+    )
+    item.user_properties.append(("bdd.level", ",".join(levels)))
+    item.user_properties.append(("bdd.documentation", documentation))
+    if scenarios:
+        serialized = json.dumps(
+            [
+                {
+                    "name": record.name,
+                    "phases": record.phases,
+                    "documented": record.documented,
+                }
+                for record in scenarios
+            ],
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        item.user_properties.append(("bdd.scenarios", serialized))
+
     policy = _policy(item.config, "bdd_documentation_policy", "bdd_documentation_policy")
     if policy == "off" or outcome.excinfo is not None:
         return
-    if _has_docstring(item) or scenarios:
+    if _has_docstring(item) or documented_scenarios:
         return
 
     message = (
@@ -106,6 +134,10 @@ def pytest_runtest_call(item: pytest.Item):
 def _has_docstring(item: pytest.Item) -> bool:
     obj = getattr(item, "obj", None)
     return bool(obj and inspect.getdoc(obj))
+
+
+def _level_markers(item: pytest.Item) -> list[str]:
+    return [level for level in LEVELS if item.get_closest_marker(level)]
 
 
 def _policy(config: pytest.Config, option: str, ini_name: str) -> Policy:

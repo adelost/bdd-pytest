@@ -3,26 +3,41 @@
 from __future__ import annotations
 
 from contextvars import ContextVar, Token
+from dataclasses import dataclass
 
-_scenario_names: ContextVar[tuple[str, ...] | None] = ContextVar(
-    "bdd_pytest_scenario_names", default=None
+
+@dataclass(frozen=True)
+class ScenarioRecord:
+    """Machine-readable scenario documentation captured during a test."""
+
+    name: str
+    phases: dict[str, str]
+    documented: bool
+
+
+_scenario_records: ContextVar[tuple[ScenarioRecord, ...] | None] = ContextVar(
+    "bdd_pytest_scenario_records", default=None
 )
 
 
-def begin_test() -> Token[tuple[str, ...] | None]:
+def begin_test() -> Token[tuple[ScenarioRecord, ...] | None]:
     """Start tracking scenarios for the current pytest item."""
-    return _scenario_names.set(())
+    return _scenario_records.set(())
 
 
-def record_scenario(name: str) -> None:
+def record_scenario(name: str, phases: dict[str, str], *, documented: bool = True) -> None:
     """Record a validated scenario without leaking state between tests."""
-    current = _scenario_names.get()
+    current = _scenario_records.get()
     if current is not None:
-        _scenario_names.set((*current, name))
+        _scenario_records.set(
+            (*current, ScenarioRecord(name=name, phases=phases, documented=documented))
+        )
 
 
-def end_test(token: Token[tuple[str, ...] | None]) -> tuple[str, ...]:
+def end_test(
+    token: Token[tuple[ScenarioRecord, ...] | None],
+) -> tuple[ScenarioRecord, ...]:
     """Return scenarios recorded by this test and restore outer state."""
-    names = _scenario_names.get() or ()
-    _scenario_names.reset(token)
-    return names
+    records = _scenario_records.get() or ()
+    _scenario_records.reset(token)
+    return records

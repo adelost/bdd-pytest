@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -22,3 +25,12 @@ jobs:
       - run: python -m pytest
       - run: python -m ruff check .
       - run: python -m build
+      - name: Test installed package
+        run: |
+          consumer="$RUNNER_TEMP/bdd-pytest-consumer"
+          python -m venv "$consumer"
+          "$consumer/bin/python" -m pip install dist/*.whl
+          cp tests/package_smoke/installed_test.py "$RUNNER_TEMP/test_bdd_pytest_installed.py"
+          cd "$RUNNER_TEMP"
+          "$consumer/bin/python" -m pytest test_bdd_pytest_installed.py \
+            --bdd-level-policy=error --bdd-documentation-policy=error

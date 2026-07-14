@@ -36,6 +36,31 @@ def test_basic_outline():
 
 
 @unit
+def test_documented_outline_uses_explicit_phase_descriptions():
+    scenario_outline(
+        "computes area with documentation",
+        [{"name": "rectangle", "w": 3, "h": 4, "expected": 12}],
+        given=("rectangle dimensions", lambda row: (row["w"], row["h"])),
+        when=("multiplying width and height", lambda ctx, row: ctx[0] * ctx[1]),
+        then=(
+            "the expected area is returned",
+            lambda result, ctx, row: expect(result).to_be(row["expected"]),
+        ),
+    )
+
+
+@unit
+def test_outline_rejects_mixed_documented_and_legacy_phases():
+    with pytest.raises(TypeError, match="must describe all phases"):
+        scenario_outline(
+            "mixed phases",
+            [{"name": "one"}],
+            when=("an action", lambda ctx, row: 1),
+            then=lambda result, ctx, row: None,
+        )
+
+
+@unit
 def test_outline_without_given():
     scenario_outline(
         "doubles a number",
@@ -133,3 +158,15 @@ def test_cases_rejects_empty_table():
 def test_cases_rejects_blank_row_name():
     with pytest.raises(ValueError, match="row 0 name"):
         cases([{"name": ""}])
+
+
+@unit
+def test_cases_requires_explicit_row_names():
+    with pytest.raises(ValueError, match="row 0 requires a non-empty name"):
+        cases([{"value": 1}])
+
+
+@unit
+def test_cases_rejects_duplicate_row_names():
+    with pytest.raises(ValueError, match="row names must be unique"):
+        cases([{"name": "same"}, {"name": "same"}])
