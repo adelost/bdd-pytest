@@ -94,6 +94,8 @@ class BddRunReporter:
         if current is not None:
             return current
         file = self._portable_file(item)
+        node_parts = item.nodeid.split("::")
+        full_name = "::".join([file, *node_parts[1:]])
         levels = [
             level
             for level in ("unit", "component", "integration", "e2e")
@@ -102,9 +104,9 @@ class BddRunReporter:
         documentation = "docstring" if _item_has_docstring(item) else "missing"
         line = item.location[1] + 1 if item.location and item.location[1] >= 0 else None
         record = TestRecord(
-            id=_test_id(file, item.nodeid),
+            id=_test_id(file, full_name),
             name=item.name,
-            full_name=item.nodeid,
+            full_name=full_name,
             file=file,
             line=line,
             level=levels[0] if len(levels) == 1 else None,
@@ -123,13 +125,19 @@ class BddRunReporter:
             # Collection normally creates every record. A defensive fallback
             # keeps third-party dynamically-created items visible without paths.
             file = report.nodeid.split("::", 1)[0].replace(os.sep, "/").replace("\\", "/")
-            if file.startswith("/") or re.match(r"^[A-Za-z]:/", file):
+            if (
+                file == ".."
+                or file.startswith(("/", "../"))
+                or re.match(r"^[A-Za-z]:/", file)
+            ):
                 file = file.rsplit("/", 1)[-1]
             name = report.nodeid.rsplit("::", 1)[-1]
+            node_parts = report.nodeid.split("::")
+            full_name = "::".join([file, *node_parts[1:]])
             record = TestRecord(
-                id=_test_id(file, report.nodeid),
+                id=_test_id(file, full_name),
                 name=name,
-                full_name=report.nodeid,
+                full_name=full_name,
                 file=file,
                 line=None,
                 level=None,
