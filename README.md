@@ -193,6 +193,12 @@ from compatibility outlines.
 This makes the same contract available to CI, documentation generators, and AI tooling without
 parsing test source or console output.
 
+Set `BDD_REPORT_FILE` or pass `--bdd-report-json PATH` to atomically emit the portable,
+versioned `bdd.run.v1` catalog for the complete selected run. bdd-vitest emits the same contract.
+The canonical schema and compatibility/privacy rules live in
+[`BDD_RUN_REPORT.md`](https://github.com/adelost/bdd-vitest/blob/main/BDD_RUN_REPORT.md); unknown
+or future schema versions must be rejected rather than guessed.
+
 ## Grouping
 
 Use pytest classes for nesting in test output:
