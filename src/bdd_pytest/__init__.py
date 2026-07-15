@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 from ._contract import record_scenario
 from ._phases import ScenarioCleanupError, raise_scenario_failures, run_phase
+from ._report import BDD_RUN_SCHEMA_VERSION
 from .expect import Expectation, expect
 from .levels import component, e2e, get_current_level, integration, unit
 from .outline import cases, scenario_outline
@@ -26,6 +27,7 @@ __all__ = [
     "component",
     "integration",
     "e2e",
+    "BDD_RUN_SCHEMA_VERSION",
 ]
 
 

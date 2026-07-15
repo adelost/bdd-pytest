@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import inspect
 import json
+import os
+from pathlib import Path
 from typing import Literal, cast
 
 import pytest
 
 from ._contract import begin_test, end_test
+from ._report import BddRunReporter
 
 LEVELS = ("unit", "component", "integration", "e2e")
 Policy = Literal["off", "warn", "error"]
@@ -35,6 +38,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=None,
         help="Require a test docstring or scenario(): off, warn, or error.",
     )
+    group.addoption(
+        "--bdd-report-json",
+        default=None,
+        metavar="PATH",
+        help="Atomically emit the versioned bdd.run.v1 test catalog and result.",
+    )
     parser.addini(
         "bdd_level_policy",
         "Contract for exactly one BDD level marker (off, warn, error).",
@@ -56,6 +65,12 @@ def pytest_configure(config: pytest.Config) -> None:
         ("bdd_documentation_policy", "bdd_documentation_policy"),
     ):
         _policy(config, option, ini_name)
+    output_file = config.getoption("bdd_report_json") or os.getenv("BDD_REPORT_FILE")
+    if output_file:
+        config.pluginmanager.register(
+            BddRunReporter(config, Path(output_file).expanduser()),
+            "bdd-pytest-run-reporter",
+        )
 
 
 @pytest.hookimpl(trylast=True)
