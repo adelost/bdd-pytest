@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: adelost/bdd-vitest
-          ref: feature/bdd-run-v1
+          ref: main
           path: .cross/bdd-vitest
       - uses: pnpm/action-setup@v6
         with:
