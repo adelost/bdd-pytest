@@ -7,9 +7,30 @@ from xml.etree import ElementTree
 
 import pytest
 
-from bdd_pytest import BDD_RUN_SCHEMA_VERSION, component
+from bdd_pytest import BDD_RUN_SCHEMA_VERSION, component, unit
+from bdd_pytest._report import TestRecord as _TestRecord
 
 pytest_plugins = ["pytester"]
+
+
+@unit
+def test_flaky_is_derived_only_from_a_final_pass_after_retry():
+    record = _TestRecord(
+        id="sha256:" + "0" * 64,
+        name="behavior",
+        full_name="test_behavior.py::test_behavior",
+        file="test_behavior.py",
+        line=1,
+        level="unit",
+        documentation="docstring",
+        retry_count=2,
+    )
+
+    record.status = "failed"
+    assert record.as_dict()["flaky"] is False
+
+    record.status = "passed"
+    assert record.as_dict()["flaky"] is True
 
 
 @component
@@ -224,6 +245,10 @@ def test_bdd_run_report_is_portable_and_versioned(
     ]
     assert all(test["file"] == "test_catalog.py" for test in report["tests"])
     assert all(test["id"].startswith("sha256:") for test in report["tests"])
+    assert all(
+        test["retryCount"] == 0 and test["flaky"] is False
+        for test in report["tests"]
+    )
     assert report["tests"][0]["scenarios"] == [
         {
             "documented": True,

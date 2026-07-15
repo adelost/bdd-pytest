@@ -50,7 +50,6 @@ class TestRecord:
     status: Status = "pending"
     duration_ms: float = 0
     retry_count: int = 0
-    flaky: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -65,7 +64,7 @@ class TestRecord:
             "status": self.status,
             "durationMs": self.duration_ms,
             "retryCount": self.retry_count,
-            "flaky": self.flaky,
+            "flaky": self.retry_count > 0 and self.status == "passed",
         }
 
 
@@ -149,7 +148,6 @@ class BddRunReporter:
         rerun = getattr(report, "rerun", 0)
         if isinstance(rerun, int) and rerun > record.retry_count:
             record.retry_count = rerun
-            record.flaky = True
 
         properties = dict(report.user_properties)
         level = properties.get("bdd.level")
